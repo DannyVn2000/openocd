@@ -317,6 +317,7 @@ static int dirtyjtag_getversion(void)
 
 static int dirtyjtag_init(void)
 {
+	LOG_DEBUG(__func__);
 	uint16_t avids[] = {dirtyjtag_vid, 0};
 	uint16_t apids[] = {dirtyjtag_pid, 0};
 	if (jtag_libusb_open(avids, apids, "DirtyJTAG", &usb_handle, NULL)) {
@@ -436,7 +437,17 @@ static int intf_bitq_out(int tms, int tdi, int tdo_req)
 				dirtyjtag_open_command(OUTSTATE_XFER);
 				write_tdi(tdi, tdo_req);
 			} else {
-				LOG_ERROR("tms at 1 unexpected");
+				dirtyjtag_close_command(false);
+				dirtyjtag_open_command(OUTSTATE_CLK);
+				if (tdo_req) {
+					djtg_bitq->tdo_in_expected = 1;
+					djtg_bitq->tdi_out_count = 1;
+				}
+				djtg_bitq->current_command_array[1] = (tdi ? SIG_TDI : 0) | (tms ? SIG_TMS : 0);
+				djtg_bitq->current_command_array[2] = 1;
+				djtg_bitq->out_state = OUTSTATE_CLK;
+				dirtyjtag_close_command(false);
+				dirtyjtag_open_command(OUTSTATE_CLK);
 			}
 			break;
 	}
